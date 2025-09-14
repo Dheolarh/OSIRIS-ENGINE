@@ -15,6 +15,7 @@ export interface Appearance {
   opacity: number;
   borderColor: string;
   borderWidth: number;
+  borderRadius?: number;
   text?: string;
   fontSize: number;
 }
@@ -100,6 +101,7 @@ export const useTileManager = () => {
       opacity: 1,
       borderColor: '#00ff00',
       borderWidth: 1,
+      borderRadius: 0,
       fontSize: 12
     }
   }), [tiles.length, currentLayer]);
@@ -114,6 +116,47 @@ export const useTileManager = () => {
   }, []);
 
   const selectTile = useCallback((tileId: string, multiSelect: boolean = false) => {
+    const tile = tiles.find(t => t.id === tileId);
+    if (!tile) return;
+
+    // Check if this tile is part of a mesh
+    if (tile.meshId) {
+      const mesh = meshes.find(m => m.id === tile.meshId);
+      if (mesh) {
+        // Select entire mesh
+        const meshTileIds = mesh.tileIds;
+        
+        if (multiSelect) {
+          setSelectedTiles(prev => {
+            const meshIsSelected = meshTileIds.every(id => prev.includes(id));
+            if (meshIsSelected) {
+              // Deselect entire mesh
+              return prev.filter(id => !meshTileIds.includes(id));
+            } else {
+              // Add entire mesh to selection
+              const newSelection = [...prev.filter(id => !meshTileIds.includes(id)), ...meshTileIds];
+              return newSelection;
+            }
+          });
+          setTiles(prev => prev.map(t => ({
+            ...t,
+            selected: meshTileIds.includes(t.id) 
+              ? !meshTileIds.every(id => selectedTiles.includes(id))
+              : prev.find(pt => pt.id === t.id)?.selected || false
+          })));
+        } else {
+          // Single select entire mesh
+          setSelectedTiles(meshTileIds);
+          setTiles(prev => prev.map(t => ({
+            ...t,
+            selected: meshTileIds.includes(t.id)
+          })));
+        }
+        return;
+      }
+    }
+
+    // Regular tile selection (not part of mesh)
     if (multiSelect) {
       setSelectedTiles(prev => {
         if (prev.includes(tileId)) {
@@ -133,7 +176,7 @@ export const useTileManager = () => {
         selected: tile.id === tileId
       })));
     }
-  }, []);
+  }, [tiles, meshes, selectedTiles]);
 
   const selectTiles = useCallback((tileIds: string[]) => {
     setSelectedTiles(tileIds);
@@ -233,8 +276,9 @@ export const useTileManager = () => {
     setSelectedTiles([]);
   }, [selectedTiles, meshes.length]);
 
-  const getTileAt = useCallback((x: number, y: number): Tile | null => {
+  const getTileAt = useCallback((x: number, y: number, layer?: LayerType): Tile | null => {
     return tiles.find(tile => 
+      (!layer || tile.layer === layer) &&
       x >= tile.transform.x && 
       x <= tile.transform.x + tile.transform.width &&
       y >= tile.transform.y && 

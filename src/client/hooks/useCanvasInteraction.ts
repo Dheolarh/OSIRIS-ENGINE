@@ -40,7 +40,7 @@ export const useCanvasInteraction = ({
     if (interaction.state.mode !== 'idle') return;
     
     const worldPos = screenToWorld(e.clientX, e.clientY);
-    const clickedTile = tileManager.getTileAt(worldPos.x, worldPos.y);
+    const clickedTile = tileManager.getTileAt(worldPos.x, worldPos.y, currentLayer);
 
     if (clickedTile) {
       // Handle tile selection
@@ -62,7 +62,7 @@ export const useCanvasInteraction = ({
   const handleMouseDown = useCallback((e: React.MouseEvent) => {
     // Prevent the click event from firing if we're starting a special interaction
     const worldPos = screenToWorld(e.clientX, e.clientY);
-    const clickedTile = tileManager.getTileAt(worldPos.x, worldPos.y);
+    const clickedTile = tileManager.getTileAt(worldPos.x, worldPos.y, currentLayer);
     
     if (e.button === 1) { // Middle mouse - pan
       e.preventDefault();
@@ -89,7 +89,7 @@ export const useCanvasInteraction = ({
         interaction.startDragging(clickedTile.id, worldPos.x, worldPos.y, offsetX, offsetY);
       }
     }
-  }, [interaction, screenToWorld, tileManager, cameraOffset]);
+  }, [interaction, screenToWorld, tileManager, cameraOffset, currentLayer]);
 
   const handleMouseMove = useCallback((e: React.MouseEvent) => {
     const worldPos = screenToWorld(e.clientX, e.clientY);

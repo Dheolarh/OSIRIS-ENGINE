@@ -359,7 +359,6 @@ export const App = () => {
 
               {/* Render tiles */}
               {tileManager.tiles
-                .filter(tile => tile.layer === currentLayer)
                 .map((tile) => (
                 <div
                   key={tile.id}
@@ -375,8 +374,11 @@ export const App = () => {
                         ? 'var(--terminal-accent)' 
                         : tile.appearance.borderColor
                     }`,
-                    opacity: tile.appearance.opacity,
-                    cursor: 'pointer',
+                    borderRadius: tile.appearance.borderRadius || 0,
+                    opacity: tile.layer === currentLayer 
+                      ? tile.appearance.opacity 
+                      : tile.appearance.opacity * 0.3, // Dim unselected layers
+                    cursor: tile.layer === currentLayer ? 'pointer' : 'default',
                     boxSizing: 'border-box',
                     transform: `rotate(${tile.transform.rotation}deg)`,
                     display: 'flex',
@@ -385,7 +387,9 @@ export const App = () => {
                     fontSize: tile.appearance.fontSize,
                     color: 'var(--terminal-primary)',
                     userSelect: 'none',
-                    zIndex: tileManager.selectedTiles.includes(tile.id) ? 1000 : 1
+                    zIndex: tile.layer === currentLayer && tileManager.selectedTiles.includes(tile.id) ? 1000 : 
+                           tile.layer === currentLayer ? 100 : 1,
+                    pointerEvents: tile.layer === currentLayer ? 'auto' : 'none' // Disable interaction for dimmed layers
                   }}
                 >
                   {tile.appearance.text}
@@ -575,6 +579,19 @@ export const App = () => {
                     max="10"
                     value={firstTile.appearance.borderWidth}
                     onChange={(e) => updateTilePropertyEnhanced('appearance.borderWidth', Number(e.target.value))}
+                    className="hacker-input"
+                    style={{ width: '100%', fontSize: '10px' }}
+                  />
+                </div>
+
+                <div style={{ marginBottom: '5px' }}>
+                  <label style={{ color: 'var(--terminal-secondary)' }}>Border Radius:</label>
+                  <input
+                    type="number"
+                    min="0"
+                    max="50"
+                    value={firstTile.appearance.borderRadius || 0}
+                    onChange={(e) => updateTilePropertyEnhanced('appearance.borderRadius', Number(e.target.value))}
                     className="hacker-input"
                     style={{ width: '100%', fontSize: '10px' }}
                   />
