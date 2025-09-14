@@ -1,0 +1,119 @@
+@import 'tailwindcss';
+
+/* Exit Code - Hacker Terminal Theme */
+:root {
+  --terminal-bg: #000000;
+  --terminal-primary: #00ff00;
+  --terminal-secondary: #008800;
+  --terminal-accent: #ffff00;
+  --terminal-danger: #ff0000;
+  --terminal-border: #333333;
+  --terminal-text: #ffffff;
+}
+
+body {
+  background-color: var(--terminal-bg);
+  color: var(--terminal-primary);
+  font-family: 'Courier New', 'Monaco', monospace;
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+}
+
+.terminal-container {
+  background: var(--terminal-bg);
+  border: 2px solid var(--terminal-border);
+  border-radius: 8px;
+  box-shadow: 0 0 20px var(--terminal-primary);
+  font-family: 'Courier New', monospace;
+}
+
+.terminal-header {
+  background: var(--terminal-border);
+  padding: 8px 16px;
+  border-bottom: 1px solid var(--terminal-primary);
+  color: var(--terminal-text);
+  font-size: 14px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.terminal-content {
+  padding: 20px;
+  min-height: 400px;
+}
+
+.grid-tile {
+  width: 32px;
+  height: 32px;
+  border: 1px solid var(--terminal-border);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 16px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-family: 'Courier New', monospace;
+  font-weight: bold;
+}
+
+.grid-tile:hover {
+  border-color: var(--terminal-primary);
+  box-shadow: 0 0 6px var(--terminal-primary);
+  transform: scale(1.1);
+}
+
+.grid-tile.selected {
+  border: 2px solid var(--terminal-accent);
+  box-shadow: 0 0 8px var(--terminal-accent);
+}
+
+.tile-player { background-color: var(--terminal-primary); color: var(--terminal-bg); }
+.tile-wall { background-color: var(--terminal-border); color: var(--terminal-text); }
+.tile-floor { background-color: transparent; color: var(--terminal-secondary); }
+.tile-hint { background-color: var(--terminal-accent); color: var(--terminal-bg); }
+.tile-key { background-color: var(--terminal-accent); color: var(--terminal-bg); }
+.tile-goal { background-color: var(--terminal-primary); color: var(--terminal-bg); }
+.tile-death { background-color: var(--terminal-danger); color: var(--terminal-text); }
+
+.hacker-button {
+  background: transparent;
+  border: 2px solid var(--terminal-primary);
+  color: var(--terminal-primary);
+  padding: 8px 16px;
+  font-family: 'Courier New', monospace;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  text-transform: uppercase;
+}
+
+.hacker-button:hover {
+  background: var(--terminal-primary);
+  color: var(--terminal-bg);
+  box-shadow: 0 0 8px var(--terminal-primary);
+}
+
+.hacker-input {
+  background: transparent;
+  border: 1px solid var(--terminal-primary);
+  color: var(--terminal-primary);
+  padding: 8px;
+  font-family: 'Courier New', monospace;
+  width: 100%;
+  outline: none;
+}
+
+.hacker-input:focus {
+  box-shadow: 0 0 8px var(--terminal-primary);
+}
+
+.blinking-cursor::after {
+  content: '_';
+  animation: blink 1s infinite;
+}
+
+@keyframes blink {
+  0%, 50% { opacity: 1; }
+  51%, 100% { opacity: 0; }
+}
