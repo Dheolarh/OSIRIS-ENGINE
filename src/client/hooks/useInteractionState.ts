@@ -1,6 +1,6 @@
 import { useState, useCallback } from 'react';
 
-export type InteractionMode = 'idle' | 'selecting' | 'dragging' | 'panning' | 'box-selecting' | 'resizing';
+export type InteractionMode = 'idle' | 'selecting' | 'dragging' | 'panning' | 'box-selecting' | 'resizing' | 'handle-dragging';
 export type CanvasMode = 'select' | 'add';
 
 export interface InteractionState {
@@ -100,6 +100,7 @@ export const useInteractionState = () => {
     
     if (currentMode === 'idle') return true;
     if (newMode === 'panning') return true; // Middle mouse always works
+    if (currentMode === 'resizing' && newMode === 'handle-dragging') return true; // Can drag handles from resize mode
     
     return false;
   }, [state.mode]);
@@ -121,6 +122,23 @@ export const useInteractionState = () => {
     });
   }, [state.canvasMode]);
 
+  const startHandleDragging = useCallback((tileId: string, handle: 'nw' | 'ne' | 'sw' | 'se' | 'n' | 'e' | 's' | 'w', startX: number, startY: number, originalX: number, originalY: number, originalWidth: number, originalHeight: number) => {
+    setState({
+      canvasMode: state.canvasMode,
+      mode: 'handle-dragging',
+      resizeData: {
+        tileId,
+        handle,
+        startX,
+        startY,
+        originalX,
+        originalY,
+        originalWidth,
+        originalHeight
+      }
+    });
+  }, [state.canvasMode]);
+
   return {
     state,
     setCanvasMode,
@@ -129,6 +147,7 @@ export const useInteractionState = () => {
     startBoxSelecting,
     updateBoxSelect,
     startResizing,
+    startHandleDragging,
     setIdle,
     canStart
   };

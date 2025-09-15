@@ -585,7 +585,7 @@ export const App = () => {
                       x: (e.clientX - rect.left - cameraOffset.x) / cameraZoom,
                       y: (e.clientY - rect.top - cameraOffset.y) / cameraZoom
                     };
-                    interaction.startResizing(
+                    interaction.startHandleDragging(
                       tile.id,
                       handle,
                       worldPos.x,

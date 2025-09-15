@@ -36,7 +36,26 @@ export const useCanvasInteraction = ({
   }, [canvasRef, cameraOffset, cameraZoom]);
 
   const handleCanvasClick = useCallback((e: React.MouseEvent) => {
-    // Only handle clicks if we're not in another interaction mode
+    // Handle clicks in different interaction modes
+    if (interaction.state.mode === 'resizing') {
+      // Exit resize mode when clicking elsewhere
+      const worldPos = screenToWorld(e.clientX, e.clientY);
+      const clickedTile = tileManager.getTileAt(worldPos.x, worldPos.y, currentLayer);
+      
+      if (!clickedTile || (interaction.state.resizeData && clickedTile.id !== interaction.state.resizeData.tileId)) {
+        // Clicked on empty space or different tile, exit resize mode
+        interaction.setIdle();
+        if (clickedTile) {
+          const isMultiSelect = e.ctrlKey || e.metaKey;
+          tileManager.selectTile(clickedTile.id, isMultiSelect);
+        } else if (!e.ctrlKey && !e.metaKey) {
+          tileManager.clearSelection();
+        }
+      }
+      return;
+    }
+    
+    // Only handle clicks if we're in idle mode
     if (interaction.state.mode !== 'idle') return;
     
     const worldPos = screenToWorld(e.clientX, e.clientY);
@@ -159,6 +178,11 @@ export const useCanvasInteraction = ({
         break;
 
       case 'resizing':
+        // Resize mode active but no dragging - just show handles, don't resize on mouse move
+        // Only resize when dragging specific handles (handled by handle mousedown events)
+        break;
+
+      case 'handle-dragging':
         if (interaction.state.resizeData) {
           const { tileId, handle, startX, startY, originalX, originalY, originalWidth, originalHeight } = interaction.state.resizeData;
           const deltaX = worldPos.x - startX;
@@ -259,6 +283,26 @@ export const useCanvasInteraction = ({
       case 'resizing':
         // End resize mode
         break;
+        
+      case 'handle-dragging':
+        // Return to resize mode (keep handles visible)
+        if (interaction.state.resizeData) {
+          const { tileId } = interaction.state.resizeData;
+          const tile = tileManager.tiles.find(t => t.id === tileId);
+          if (tile) {
+            interaction.startResizing(
+              tileId,
+              'se', // default handle
+              tile.transform.x,
+              tile.transform.y,
+              tile.transform.x,
+              tile.transform.y,
+              tile.transform.width,
+              tile.transform.height
+            );
+          }
+        }
+        return; // Don't call setIdle() - stay in resizing mode
     }
     
     interaction.setIdle();
