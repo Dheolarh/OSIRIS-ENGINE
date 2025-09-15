@@ -223,21 +223,77 @@ export const useTileManager = (currentLayer: LayerType = 'midground') => {
   }, []);
 
   const moveTiles = useCallback((tileIds: string[], deltaX: number, deltaY: number, canvasWidth: number, canvasHeight: number, cameraZoom: number) => {
-    setTiles(prev => prev.map(tile => {
-      if (!tileIds.includes(tile.id)) return tile;
+    setTiles(prev => {
+      // Group tiles by meshId to handle mesh movement as unified groups
+      const meshGroups: { [meshId: string]: Tile[] } = {};
+      const individualTiles: Tile[] = [];
       
-      const newX = tile.transform.x + deltaX;
-      const newY = tile.transform.y + deltaY;
-      
-      return {
-        ...tile,
-        transform: {
-          ...tile.transform,
-          x: Math.max(0, Math.min(newX, canvasWidth / cameraZoom - tile.transform.width)),
-          y: Math.max(0, Math.min(newY, canvasHeight / cameraZoom - tile.transform.height))
+      // Categorize tiles by mesh groups
+      tileIds.forEach(tileId => {
+        const tile = prev.find(t => t.id === tileId);
+        if (tile) {
+          if (tile.meshId) {
+            if (!meshGroups[tile.meshId]) {
+              meshGroups[tile.meshId] = [];
+            }
+            meshGroups[tile.meshId]!.push(tile);
+          } else {
+            individualTiles.push(tile);
+          }
         }
-      };
-    }));
+      });
+
+      return prev.map(tile => {
+        if (!tileIds.includes(tile.id)) return tile;
+        
+        // Handle mesh tiles - move as a unified group
+        if (tile.meshId && meshGroups[tile.meshId]) {
+          const meshTiles = meshGroups[tile.meshId]!;
+          if (meshTiles && meshTiles.length > 0) {
+            // Calculate the bounds of the entire mesh
+            const minX = Math.min(...meshTiles.map(t => t.transform.x));
+            const maxX = Math.max(...meshTiles.map(t => t.transform.x + t.transform.width));
+            const minY = Math.min(...meshTiles.map(t => t.transform.y));
+            const maxY = Math.max(...meshTiles.map(t => t.transform.y + t.transform.height));
+            
+            const meshWidth = maxX - minX;
+            const meshHeight = maxY - minY;
+            
+            // Calculate constraints for the entire mesh
+            const newMeshMinX = minX + deltaX;
+            const newMeshMinY = minY + deltaY;
+            
+            const constrainedMeshMinX = Math.max(0, Math.min(newMeshMinX, canvasWidth / cameraZoom - meshWidth));
+            const constrainedMeshMinY = Math.max(0, Math.min(newMeshMinY, canvasHeight / cameraZoom - meshHeight));
+            
+            const actualDeltaX = constrainedMeshMinX - minX;
+            const actualDeltaY = constrainedMeshMinY - minY;
+            
+            return {
+              ...tile,
+              transform: {
+                ...tile.transform,
+                x: tile.transform.x + actualDeltaX,
+                y: tile.transform.y + actualDeltaY
+              }
+            };
+          }
+        }
+        
+        // Handle individual tiles
+        const newX = tile.transform.x + deltaX;
+        const newY = tile.transform.y + deltaY;
+        
+        return {
+          ...tile,
+          transform: {
+            ...tile.transform,
+            x: Math.max(0, Math.min(newX, canvasWidth / cameraZoom - tile.transform.width)),
+            y: Math.max(0, Math.min(newY, canvasWidth / cameraZoom - tile.transform.height))
+          }
+        };
+      });
+    });
   }, []);
 
   const updateTileProperty = useCallback((path: string, value: any) => {
@@ -384,7 +440,67 @@ export const useTileManager = (currentLayer: LayerType = 'midground') => {
 
   const duplicateTiles = useCallback((tileIds: string[]) => {
     const tilesToDuplicate = tiles.filter(tile => tileIds.includes(tile.id));
-    const duplicatedTiles = tilesToDuplicate.map(tile => {
+    
+    // Group tiles by mesh to handle mesh duplication properly
+    const meshGroups: { [meshId: string]: Tile[] } = {};
+    const individualTiles: Tile[] = [];
+    
+    tilesToDuplicate.forEach(tile => {
+      if (tile.meshId) {
+        if (!meshGroups[tile.meshId]) {
+          meshGroups[tile.meshId] = [];
+        }
+        meshGroups[tile.meshId]!.push(tile);
+      } else {
+        individualTiles.push(tile);
+      }
+    });
+    
+    const duplicatedTiles: Tile[] = [];
+    const newMeshes: Mesh[] = [];
+    const oldToNewMeshIds: { [oldId: string]: string } = {};
+    
+    // Duplicate mesh groups
+    Object.keys(meshGroups).forEach(oldMeshId => {
+      const meshTiles = meshGroups[oldMeshId]!;
+      const originalMesh = meshes.find(m => m.id === oldMeshId);
+      
+      if (originalMesh && meshTiles) {
+        // Create new mesh
+        const newMeshId = generateId();
+        oldToNewMeshIds[oldMeshId] = newMeshId;
+        
+        const newMesh: Mesh = {
+          id: newMeshId,
+          name: `${originalMesh.name}_Copy`,
+          tileIds: [],
+          ...(originalMesh.physics && { physics: originalMesh.physics }),
+          ...(originalMesh.events && { events: originalMesh.events })
+        };
+        
+        // Duplicate tiles in this mesh
+        const meshDuplicatedTiles = meshTiles.map(tile => {
+          const newTile = { ...tile };
+          newTile.id = generateId();
+          newTile.name = `${tile.name}_Copy`;
+          newTile.meshId = newMeshId;
+          newTile.transform = {
+            ...tile.transform,
+            x: tile.transform.x + 20, // Offset duplicated tiles
+            y: tile.transform.y + 20
+          };
+          newTile.selected = false;
+          return newTile;
+        });
+        
+        newMesh.tileIds = meshDuplicatedTiles.map(tile => tile.id);
+        newMeshes.push(newMesh);
+        duplicatedTiles.push(...meshDuplicatedTiles);
+      }
+    });
+    
+    // Duplicate individual tiles
+    const individualDuplicatedTiles = individualTiles.map(tile => {
       const newTile = { ...tile };
       newTile.id = generateId();
       newTile.name = `${tile.name}_Copy`;
@@ -396,8 +512,12 @@ export const useTileManager = (currentLayer: LayerType = 'midground') => {
       newTile.selected = false;
       return newTile;
     });
+    
+    duplicatedTiles.push(...individualDuplicatedTiles);
 
+    // Update state
     setTiles(prev => [...prev, ...duplicatedTiles]);
+    setMeshes(prev => [...prev, ...newMeshes]);
     
     // Select the duplicated tiles
     const duplicatedIds = duplicatedTiles.map(tile => tile.id);
@@ -406,7 +526,7 @@ export const useTileManager = (currentLayer: LayerType = 'midground') => {
       ...tile,
       selected: duplicatedIds.includes(tile.id)
     })));
-  }, [tiles]);
+  }, [tiles, meshes]);
 
   const selectedTileData = selectedTiles.length > 0 ? tiles.find(t => t.id === selectedTiles[0]) : null;
 

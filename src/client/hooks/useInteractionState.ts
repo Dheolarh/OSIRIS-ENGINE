@@ -1,6 +1,6 @@
 import { useState, useCallback } from 'react';
 
-export type InteractionMode = 'idle' | 'selecting' | 'dragging' | 'panning' | 'box-selecting';
+export type InteractionMode = 'idle' | 'selecting' | 'dragging' | 'panning' | 'box-selecting' | 'resizing';
 export type CanvasMode = 'select' | 'add';
 
 export interface InteractionState {
@@ -22,6 +22,16 @@ export interface InteractionState {
     startY: number;
     endX: number;
     endY: number;
+  };
+  resizeData?: {
+    tileId: string;
+    startX: number;
+    startY: number;
+    originalX: number;
+    originalY: number;
+    originalWidth: number;
+    originalHeight: number;
+    handle: 'nw' | 'ne' | 'sw' | 'se' | 'n' | 'e' | 's' | 'w'; // resize handle position
   };
 }
 
@@ -94,6 +104,23 @@ export const useInteractionState = () => {
     return false;
   }, [state.mode]);
 
+  const startResizing = useCallback((tileId: string, handle: 'nw' | 'ne' | 'sw' | 'se' | 'n' | 'e' | 's' | 'w', startX: number, startY: number, originalX: number, originalY: number, originalWidth: number, originalHeight: number) => {
+    setState({
+      canvasMode: state.canvasMode,
+      mode: 'resizing',
+      resizeData: {
+        tileId,
+        handle,
+        startX,
+        startY,
+        originalX,
+        originalY,
+        originalWidth,
+        originalHeight
+      }
+    });
+  }, [state.canvasMode]);
+
   return {
     state,
     setCanvasMode,
@@ -101,6 +128,7 @@ export const useInteractionState = () => {
     startPanning,
     startBoxSelecting,
     updateBoxSelect,
+    startResizing,
     setIdle,
     canStart
   };
