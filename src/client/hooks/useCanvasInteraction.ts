@@ -22,7 +22,7 @@ export const useCanvasInteraction = ({
   currentLayer
 }: CanvasInteractionProps) => {
   const interaction = useInteractionState();
-  const tileManager = useTileManager();
+  const tileManager = useTileManager(currentLayer);
 
   // Convert screen coordinates to world coordinates
   const screenToWorld = useCallback((screenX: number, screenY: number) => {

@@ -147,7 +147,12 @@ export const App = () => {
   }
 
   return (
-    <div className="terminal-container" style={{ margin: '20px', maxWidth: '1400px', minHeight: '700px' }}>
+    <div className="terminal-container" style={{ 
+      margin: '20px', 
+      maxWidth: '1400px', 
+      minHeight: '700px',
+      overflow: 'hidden' 
+    }}>
       <div className="terminal-header">
         <span>EXIT_CODE.exe - Creator Studio v2.0 [TILE SYSTEM]</span>
         <div style={{ display: 'flex', gap: '10px' }}>
@@ -188,6 +193,142 @@ export const App = () => {
                 {layer.toUpperCase()}
               </button>
             ))}
+          </div>
+
+          {/* Sub-layer controls */}
+          <div style={{ marginBottom: '20px', padding: '8px', border: '1px solid var(--terminal-secondary)', borderRadius: '2px' }}>
+            <div style={{ color: 'var(--terminal-accent)', marginBottom: '8px', fontSize: '12px' }}>
+              SUB-LAYERS ({currentLayer.toUpperCase()}):
+            </div>
+            
+            {/* Current sub-layer display */}
+            <div style={{ marginBottom: '8px', fontSize: '10px', color: 'var(--terminal-secondary)' }}>
+              Current: {tileManager.currentSubLayerId ? 
+                tileManager.subLayers.find(sl => sl.id === tileManager.currentSubLayerId)?.name || 'Unknown' : 
+                'None (Main Layer)'
+              }
+            </div>
+
+            {/* Sub-layer list */}
+            <div style={{ maxHeight: '120px', overflowY: 'auto', marginBottom: '8px' }}>
+              {tileManager.getSubLayersForLayer(currentLayer).map((subLayer) => (
+                <div key={subLayer.id} style={{ 
+                  display: 'flex', 
+                  alignItems: 'center', 
+                  marginBottom: '2px',
+                  padding: '2px 4px',
+                  backgroundColor: tileManager.currentSubLayerId === subLayer.id ? 'var(--terminal-accent-bg)' : 'transparent',
+                  border: tileManager.currentSubLayerId === subLayer.id ? '1px solid var(--terminal-accent)' : '1px solid transparent'
+                }}>
+                  <button
+                    onClick={() => tileManager.setCurrentSubLayerId(subLayer.id)}
+                    style={{
+                      background: 'none',
+                      border: 'none',
+                      color: 'var(--terminal-primary)',
+                      fontSize: '9px',
+                      cursor: 'pointer',
+                      padding: '2px',
+                      flex: 1,
+                      textAlign: 'left'
+                    }}
+                  >
+                    {subLayer.name} (z:{subLayer.zIndex})
+                  </button>
+                  <button
+                    onClick={() => tileManager.toggleSubLayerVisibility(subLayer.id)}
+                    style={{
+                      background: 'none',
+                      border: 'none',
+                      color: subLayer.visible ? 'var(--terminal-accent)' : 'var(--terminal-secondary)',
+                      fontSize: '8px',
+                      cursor: 'pointer',
+                      padding: '2px',
+                      width: '20px'
+                    }}
+                  >
+                    👁
+                  </button>
+                </div>
+              ))}
+            </div>
+
+            {/* Sub-layer controls */}
+            <div style={{ display: 'flex', gap: '4px', marginBottom: '4px' }}>
+              <button
+                onClick={() => {
+                  const name = prompt('Sub-layer name:', `SubLayer_${tileManager.getSubLayersForLayer(currentLayer).length + 1}`);
+                  if (name) {
+                    const newSubLayer = tileManager.createSubLayer(name, currentLayer);
+                    tileManager.setCurrentSubLayerId(newSubLayer.id);
+                  }
+                }}
+                className="hacker-button"
+                style={{ flex: 1, fontSize: '8px', padding: '2px 4px' }}
+              >
+                NEW
+              </button>
+              
+              <button
+                onClick={() => tileManager.setCurrentSubLayerId(null)}
+                className="hacker-button"
+                style={{ flex: 1, fontSize: '8px', padding: '2px 4px' }}
+              >
+                MAIN
+              </button>
+            </div>
+
+            {/* Current sub-layer actions */}
+            {tileManager.currentSubLayerId && (
+              <div style={{ display: 'flex', gap: '4px', fontSize: '8px' }}>
+                <button
+                  onClick={() => {
+                    const currentSub = tileManager.subLayers.find(sl => sl.id === tileManager.currentSubLayerId);
+                    if (currentSub) {
+                      const newName = prompt('Rename sub-layer:', currentSub.name);
+                      if (newName && newName !== currentSub.name) {
+                        tileManager.renameSubLayer(currentSub.id, newName);
+                      }
+                    }
+                  }}
+                  className="hacker-button"
+                  style={{ flex: 1, padding: '2px 4px' }}
+                >
+                  RENAME
+                </button>
+                
+                <button
+                  onClick={() => {
+                    const currentSub = tileManager.subLayers.find(sl => sl.id === tileManager.currentSubLayerId);
+                    if (currentSub) {
+                      const newZIndex = prompt('Set Z-Index:', currentSub.zIndex.toString());
+                      if (newZIndex !== null) {
+                        const zIndex = parseInt(newZIndex);
+                        if (!isNaN(zIndex)) {
+                          tileManager.updateSubLayerZIndex(currentSub.id, zIndex);
+                        }
+                      }
+                    }
+                  }}
+                  className="hacker-button"
+                  style={{ flex: 1, padding: '2px 4px' }}
+                >
+                  Z-IDX
+                </button>
+                
+                <button
+                  onClick={() => {
+                    if (confirm('Delete this sub-layer? Tiles will be moved to the main layer.') && tileManager.currentSubLayerId) {
+                      tileManager.deleteSubLayer(tileManager.currentSubLayerId);
+                    }
+                  }}
+                  className="hacker-button"
+                  style={{ flex: 1, padding: '2px 4px', color: 'var(--terminal-danger)' }}
+                >
+                  DEL
+                </button>
+              </div>
+            )}
           </div>
 
           {/* Unity-style Mode Switcher */}
@@ -359,6 +500,28 @@ export const App = () => {
 
               {/* Render tiles */}
               {tileManager.tiles
+                .sort((a, b) => {
+                  // First sort by layer order
+                  const layerOrder = { background: 0, midground: 1, foreground: 2 };
+                  const layerDiff = layerOrder[a.layer] - layerOrder[b.layer];
+                  if (layerDiff !== 0) return layerDiff;
+                  
+                  // Then sort by sub-layer z-index within the same layer
+                  const aSubLayer = tileManager.subLayers.find(sl => sl.id === a.subLayerId);
+                  const bSubLayer = tileManager.subLayers.find(sl => sl.id === b.subLayerId);
+                  const aZIndex = aSubLayer ? aSubLayer.zIndex : 0; // Main layer has z-index 0
+                  const bZIndex = bSubLayer ? bSubLayer.zIndex : 0;
+                  
+                  return aZIndex - bZIndex;
+                })
+                .filter(tile => {
+                  // Filter out tiles in hidden sub-layers
+                  if (tile.subLayerId) {
+                    const subLayer = tileManager.subLayers.find(sl => sl.id === tile.subLayerId);
+                    return subLayer?.visible !== false;
+                  }
+                  return true;
+                })
                 .map((tile) => (
                 <div
                   key={tile.id}
@@ -375,6 +538,9 @@ export const App = () => {
                         : tile.appearance.borderColor
                     }`,
                     borderRadius: tile.appearance.borderRadius || 0,
+                    boxShadow: tile.appearance.shadow?.enabled 
+                      ? `${tile.appearance.shadow.type === 'inner' ? 'inset ' : ''}${tile.appearance.shadow.offsetX}px ${tile.appearance.shadow.offsetY}px ${tile.appearance.shadow.blur}px ${tile.appearance.shadow.color}${Math.round(tile.appearance.shadow.opacity * 255).toString(16).padStart(2, '0')}`
+                      : 'none',
                     opacity: tile.layer === currentLayer 
                       ? tile.appearance.opacity 
                       : tile.appearance.opacity * 0.3, // Dim unselected layers
@@ -387,8 +553,24 @@ export const App = () => {
                     fontSize: tile.appearance.fontSize,
                     color: 'var(--terminal-primary)',
                     userSelect: 'none',
-                    zIndex: tile.layer === currentLayer && tileManager.selectedTiles.includes(tile.id) ? 1000 : 
-                           tile.layer === currentLayer ? 100 : 1,
+                    zIndex: (() => {
+                      let baseZIndex = tile.layer === currentLayer ? 100 : 1;
+                      
+                      // Add sub-layer z-index offset
+                      if (tile.subLayerId) {
+                        const subLayer = tileManager.subLayers.find(sl => sl.id === tile.subLayerId);
+                        if (subLayer) {
+                          baseZIndex += subLayer.zIndex;
+                        }
+                      }
+                      
+                      // Selected tiles get priority
+                      if (tile.layer === currentLayer && tileManager.selectedTiles.includes(tile.id)) {
+                        baseZIndex += 1000;
+                      }
+                      
+                      return baseZIndex;
+                    })(),
                     pointerEvents: tile.layer === currentLayer ? 'auto' : 'none' // Disable interaction for dimmed layers
                   }}
                 >
@@ -468,6 +650,76 @@ export const App = () => {
                   {selectedTiles.length} OBJECTS SELECTED
                 </div>
               )}
+
+              {/* Mesh information */}
+              {(() => {
+                const firstMesh = tileManager.meshes.find(mesh => mesh.tileIds.includes(firstTile.id));
+                if (firstMesh) {
+                  return (
+                    <div style={{ 
+                      marginBottom: '10px', 
+                      padding: '8px', 
+                      border: '1px solid var(--terminal-accent)', 
+                      borderRadius: '2px',
+                      backgroundColor: 'rgba(0, 255, 0, 0.05)'
+                    }}>
+                      <div style={{ 
+                        color: 'var(--terminal-accent)', 
+                        fontSize: '11px', 
+                        fontWeight: 'bold',
+                        marginBottom: '5px'
+                      }}>
+                        MESH INFO:
+                      </div>
+                      <div style={{ color: 'var(--terminal-secondary)', fontSize: '10px', marginBottom: '3px' }}>
+                        Name: {firstMesh.name}
+                      </div>
+                      <div style={{ color: 'var(--terminal-secondary)', fontSize: '10px', marginBottom: '3px' }}>
+                        ID: {firstMesh.id}
+                      </div>
+                      <div style={{ color: 'var(--terminal-secondary)', fontSize: '10px' }}>
+                        Objects: {firstMesh.tileIds.length}
+                      </div>
+                    </div>
+                  );
+                }
+                return null;
+              })()}
+
+              {/* Sub-layer information */}
+              {firstTile.subLayerId && (() => {
+                const subLayer = tileManager.subLayers.find(sl => sl.id === firstTile.subLayerId);
+                if (subLayer) {
+                  return (
+                    <div style={{ 
+                      marginBottom: '10px', 
+                      padding: '8px', 
+                      border: '1px solid var(--terminal-secondary)', 
+                      borderRadius: '2px',
+                      backgroundColor: 'rgba(128, 128, 128, 0.05)'
+                    }}>
+                      <div style={{ 
+                        color: 'var(--terminal-secondary)', 
+                        fontSize: '11px', 
+                        fontWeight: 'bold',
+                        marginBottom: '5px'
+                      }}>
+                        SUB-LAYER:
+                      </div>
+                      <div style={{ color: 'var(--terminal-secondary)', fontSize: '10px', marginBottom: '3px' }}>
+                        Name: {subLayer.name}
+                      </div>
+                      <div style={{ color: 'var(--terminal-secondary)', fontSize: '10px', marginBottom: '3px' }}>
+                        Layer: {subLayer.parentLayer}
+                      </div>
+                      <div style={{ color: 'var(--terminal-secondary)', fontSize: '10px' }}>
+                        Z-Index: {subLayer.zIndex}
+                      </div>
+                    </div>
+                  );
+                }
+                return null;
+              })()}
               
               <div style={{ marginBottom: '15px' }}>
                 <div style={{ color: 'var(--terminal-accent)', marginBottom: '5px' }}>TRANSFORM</div>
@@ -595,6 +847,109 @@ export const App = () => {
                     className="hacker-input"
                     style={{ width: '100%', fontSize: '10px' }}
                   />
+                </div>
+
+                {/* Shadow controls */}
+                <div style={{ marginBottom: '10px', padding: '8px', border: '1px solid var(--terminal-secondary)', borderRadius: '2px' }}>
+                  <div style={{ marginBottom: '5px' }}>
+                    <label style={{ color: 'var(--terminal-accent)', fontSize: '11px', fontWeight: 'bold' }}>SHADOW:</label>
+                  </div>
+                  
+                  <div style={{ marginBottom: '5px' }}>
+                    <label style={{ color: 'var(--terminal-secondary)', display: 'flex', alignItems: 'center' }}>
+                      <input
+                        type="checkbox"
+                        checked={firstTile.appearance.shadow?.enabled || false}
+                        onChange={(e) => updateTilePropertyEnhanced('appearance.shadow.enabled', e.target.checked)}
+                        style={{ marginRight: '5px' }}
+                      />
+                      Enable Shadow
+                    </label>
+                  </div>
+
+                  {firstTile.appearance.shadow?.enabled && (
+                    <>
+                      <div style={{ marginBottom: '5px' }}>
+                        <label style={{ color: 'var(--terminal-secondary)' }}>Type:</label>
+                        <select
+                          value={firstTile.appearance.shadow.type}
+                          onChange={(e) => updateTilePropertyEnhanced('appearance.shadow.type', e.target.value)}
+                          className="hacker-input"
+                          style={{ width: '100%', fontSize: '10px' }}
+                        >
+                          <option value="outer">Outer</option>
+                          <option value="inner">Inner</option>
+                        </select>
+                      </div>
+
+                      <div style={{ display: 'flex', gap: '5px', marginBottom: '5px' }}>
+                        <div style={{ flex: 1 }}>
+                          <label style={{ color: 'var(--terminal-secondary)' }}>Offset X:</label>
+                          <input
+                            type="number"
+                            min="-20"
+                            max="20"
+                            value={firstTile.appearance.shadow.offsetX}
+                            onChange={(e) => updateTilePropertyEnhanced('appearance.shadow.offsetX', Number(e.target.value))}
+                            className="hacker-input"
+                            style={{ width: '100%', fontSize: '10px' }}
+                          />
+                        </div>
+                        <div style={{ flex: 1 }}>
+                          <label style={{ color: 'var(--terminal-secondary)' }}>Offset Y:</label>
+                          <input
+                            type="number"
+                            min="-20"
+                            max="20"
+                            value={firstTile.appearance.shadow.offsetY}
+                            onChange={(e) => updateTilePropertyEnhanced('appearance.shadow.offsetY', Number(e.target.value))}
+                            className="hacker-input"
+                            style={{ width: '100%', fontSize: '10px' }}
+                          />
+                        </div>
+                      </div>
+
+                      <div style={{ marginBottom: '5px' }}>
+                        <label style={{ color: 'var(--terminal-secondary)' }}>Blur:</label>
+                        <input
+                          type="number"
+                          min="0"
+                          max="20"
+                          value={firstTile.appearance.shadow.blur}
+                          onChange={(e) => updateTilePropertyEnhanced('appearance.shadow.blur', Number(e.target.value))}
+                          className="hacker-input"
+                          style={{ width: '100%', fontSize: '10px' }}
+                        />
+                      </div>
+
+                      <div style={{ marginBottom: '5px' }}>
+                        <label style={{ color: 'var(--terminal-secondary)' }}>Shadow Color:</label>
+                        <input
+                          type="color"
+                          value={firstTile.appearance.shadow.color}
+                          onChange={(e) => updateTilePropertyEnhanced('appearance.shadow.color', e.target.value)}
+                          className="hacker-input"
+                          style={{ width: '100%', height: '24px', padding: '0' }}
+                        />
+                      </div>
+
+                      <div style={{ marginBottom: '5px' }}>
+                        <label style={{ color: 'var(--terminal-secondary)' }}>Shadow Opacity:</label>
+                        <input
+                          type="range"
+                          min="0"
+                          max="1"
+                          step="0.1"
+                          value={firstTile.appearance.shadow.opacity}
+                          onChange={(e) => updateTilePropertyEnhanced('appearance.shadow.opacity', Number(e.target.value))}
+                          style={{ width: '100%' }}
+                        />
+                        <div style={{ fontSize: '10px', color: 'var(--terminal-secondary)', textAlign: 'center' }}>
+                          {(firstTile.appearance.shadow.opacity * 100).toFixed(0)}%
+                        </div>
+                      </div>
+                    </>
+                  )}
                 </div>
 
                 <div style={{ marginBottom: '5px' }}>

@@ -18,6 +18,15 @@ export interface Appearance {
   borderRadius?: number;
   text?: string;
   fontSize: number;
+  shadow?: {
+    enabled: boolean;
+    type: 'outer' | 'inner';
+    offsetX: number;
+    offsetY: number;
+    blur: number;
+    color: string;
+    opacity: number;
+  };
 }
 
 export interface Physics {
@@ -64,6 +73,9 @@ export interface Tile {
   
   // Meshing
   meshId?: string; // If part of a merged mesh
+  
+  // Sub-layer system
+  subLayerId?: string;
 }
 
 export interface Mesh {
@@ -74,13 +86,22 @@ export interface Mesh {
   events?: Events;
 }
 
+export interface SubLayer {
+  id: string;
+  name: string;
+  parentLayer: LayerType;
+  zIndex: number;
+  visible: boolean;
+}
+
 const DEFAULT_TILE_SIZE = 20;
 
-export const useTileManager = () => {
+export const useTileManager = (currentLayer: LayerType = 'midground') => {
   const [tiles, setTiles] = useState<Tile[]>([]);
   const [meshes, setMeshes] = useState<Mesh[]>([]);
   const [selectedTiles, setSelectedTiles] = useState<string[]>([]);
-  const [currentLayer, setCurrentLayer] = useState<LayerType>('midground');
+  const [subLayers, setSubLayers] = useState<SubLayer[]>([]);
+  const [currentSubLayerId, setCurrentSubLayerId] = useState<string | null>(null);
 
   const generateId = () => Math.random().toString(36).substr(2, 9);
 
@@ -102,9 +123,19 @@ export const useTileManager = () => {
       borderColor: '#00ff00',
       borderWidth: 1,
       borderRadius: 0,
-      fontSize: 12
-    }
-  }), [tiles.length, currentLayer]);
+      fontSize: 12,
+      shadow: {
+        enabled: false,
+        type: 'outer',
+        offsetX: 2,
+        offsetY: 2,
+        blur: 4,
+        color: '#000000',
+        opacity: 0.3
+      }
+    },
+    ...(currentSubLayerId && { subLayerId: currentSubLayerId })
+  }), [tiles.length, currentLayer, currentSubLayerId]);
 
   const addTile = useCallback((tile: Tile) => {
     setTiles(prev => [...prev, tile]);
@@ -276,6 +307,60 @@ export const useTileManager = () => {
     setSelectedTiles([]);
   }, [selectedTiles, meshes.length]);
 
+  // Sub-layer management functions
+  const createSubLayer = useCallback((name: string, parentLayer: LayerType, zIndex: number = 0): SubLayer => {
+    const subLayer: SubLayer = {
+      id: generateId(),
+      name,
+      parentLayer,
+      zIndex,
+      visible: true
+    };
+    
+    setSubLayers(prev => [...prev, subLayer].sort((a, b) => a.zIndex - b.zIndex));
+    return subLayer;
+  }, []);
+
+  const updateSubLayerZIndex = useCallback((subLayerId: string, newZIndex: number) => {
+    setSubLayers(prev => prev.map(sl => 
+      sl.id === subLayerId ? { ...sl, zIndex: newZIndex } : sl
+    ).sort((a, b) => a.zIndex - b.zIndex));
+  }, []);
+
+  const renameSubLayer = useCallback((subLayerId: string, newName: string) => {
+    setSubLayers(prev => prev.map(sl => 
+      sl.id === subLayerId ? { ...sl, name: newName } : sl
+    ));
+  }, []);
+
+  const toggleSubLayerVisibility = useCallback((subLayerId: string) => {
+    setSubLayers(prev => prev.map(sl => 
+      sl.id === subLayerId ? { ...sl, visible: !sl.visible } : sl
+    ));
+  }, []);
+
+  const deleteSubLayer = useCallback((subLayerId: string) => {
+    // Move all tiles in this sub-layer back to no sub-layer
+    setTiles(prev => prev.map(tile => {
+      if (tile.subLayerId === subLayerId) {
+        const { subLayerId: _, ...tileWithoutSubLayer } = tile;
+        return tileWithoutSubLayer;
+      }
+      return tile;
+    }));
+    
+    setSubLayers(prev => prev.filter(sl => sl.id !== subLayerId));
+    
+    // Reset current sub-layer if it was deleted
+    if (currentSubLayerId === subLayerId) {
+      setCurrentSubLayerId(null);
+    }
+  }, [currentSubLayerId]);
+
+  const getSubLayersForLayer = useCallback((layer: LayerType): SubLayer[] => {
+    return subLayers.filter(sl => sl.parentLayer === layer);
+  }, [subLayers]);
+
   const getTileAt = useCallback((x: number, y: number, layer?: LayerType): Tile | null => {
     return tiles.find(tile => 
       (!layer || tile.layer === layer) &&
@@ -334,7 +419,6 @@ export const useTileManager = () => {
     currentLayer,
     
     // Actions
-    setCurrentLayer,
     createTile,
     addTile,
     selectTile,
@@ -347,6 +431,17 @@ export const useTileManager = () => {
     duplicateTiles,
     clearAll,
     createMeshFromSelected,
+    
+    // Sub-layer functions
+    subLayers,
+    currentSubLayerId,
+    setCurrentSubLayerId,
+    createSubLayer,
+    updateSubLayerZIndex,
+    renameSubLayer,
+    toggleSubLayerVisibility,
+    deleteSubLayer,
+    getSubLayersForLayer,
     
     // Queries
     getTileAt,
