@@ -1,4 +1,3 @@
-// Flyweight pattern for tile rendering optimization
 import React from 'react';
 import { Tile, Transform, Appearance } from '../hooks/useTileManager';
 
