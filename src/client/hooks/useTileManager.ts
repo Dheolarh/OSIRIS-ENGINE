@@ -18,6 +18,7 @@ export interface Appearance {
   borderRadius?: number;
   text?: string;
   fontSize: number;
+  triangulate?: boolean; // Convert rectangular tile to triangle shape
   shadow?: {
     enabled: boolean;
     type: 'outer' | 'inner';

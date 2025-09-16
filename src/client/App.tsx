@@ -1,6 +1,7 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { useCanvasInteraction } from './hooks/useCanvasInteraction';
 import { LayerType } from './hooks/useTileManager';
+import { usePhysics } from './physics/hooks/usePhysics';
 import { Header } from './components/ui/Header';
 import { Canvas } from './components/canvas/Canvas';
 import { LeftPanel } from './components/panels/LeftPanel';
@@ -22,6 +23,9 @@ export const App = () => {
   
   const canvasRef = useRef<HTMLDivElement>(null!);
 
+  // Physics system
+  const physics = usePhysics();
+
   // Use the canvas interaction hook for clean state management
   const {
     interaction,
@@ -40,6 +44,82 @@ export const App = () => {
     canvasHeight: CANVAS_HEIGHT,
     currentLayer
   });
+
+  // Physics integration - sync tiles with physics bodies
+  useEffect(() => {
+    if (!physics.isPhysicsEnabled) return;
+
+    let animationFrame: number;
+
+    const syncPhysicsToTiles = () => {
+      // Update tile positions from physics bodies
+      tileManager.tiles.forEach(tile => {
+        if (physics.hasPhysicsBody(tile.id)) {
+          const physicsPosition = physics.getPhysicsPosition(tile.id);
+          if (physicsPosition) {
+            // Convert physics center position back to top-left corner for tile
+            const tileX = physicsPosition.x - tile.transform.width / 2;
+            const tileY = physicsPosition.y - tile.transform.height / 2;
+            
+            // Only update if position changed significantly (avoid jitter)
+            const threshold = 0.5;
+            if (
+              Math.abs(tileX - tile.transform.x) > threshold ||
+              Math.abs(tileY - tile.transform.y) > threshold
+            ) {
+              // Update tile position directly using the internal state
+              tile.transform.x = tileX;
+              tile.transform.y = tileY;
+            }
+          }
+        }
+      });
+
+      animationFrame = requestAnimationFrame(syncPhysicsToTiles);
+    };
+
+    // Start the sync loop
+    animationFrame = requestAnimationFrame(syncPhysicsToTiles);
+
+    return () => {
+      if (animationFrame) {
+        cancelAnimationFrame(animationFrame);
+      }
+    };
+  }, [physics.isPhysicsEnabled, tileManager, physics]);
+
+  // Enhanced physics methods that integrate with tile data
+  const createPhysicsBodyForTile = (tileId: string) => {
+    const tile = tileManager.tiles.find(t => t.id === tileId);
+    if (!tile) return null;
+
+    // Create physics body with tile's properties
+    const body = physics.createPhysicsBody(tileId);
+    if (body) {
+      // Immediately sync the tile position and size to the physics body
+      physics.syncTileWithPhysics(
+        tileId,
+        { x: tile.transform.x, y: tile.transform.y },
+        { width: tile.transform.width, height: tile.transform.height }
+      );
+    }
+    return body;
+  };
+
+  // Sync tiles to physics bodies when tiles change
+  useEffect(() => {
+    if (!physics.isPhysicsEnabled) return;
+
+    tileManager.tiles.forEach(tile => {
+      if (physics.hasPhysicsBody(tile.id)) {
+        physics.syncTileWithPhysics(
+          tile.id,
+          { x: tile.transform.x, y: tile.transform.y },
+          { width: tile.transform.width, height: tile.transform.height }
+        );
+      }
+    });
+  }, [tileManager.tiles, physics]);
 
   // Camera zoom handler with bounds
   const handleWheelZoom = (e: React.WheelEvent) => {
@@ -126,7 +206,7 @@ export const App = () => {
   if (appMode === 'player') {
     return (
       <div className="terminal-container" style={{ margin: '20px', maxWidth: '800px', minHeight: '600px' }}>
-        <Header appMode={appMode} setAppMode={setAppMode} />
+        <Header appMode={appMode} setAppMode={setAppMode} physics={physics} />
         <div className="terminal-content" style={{ textAlign: 'center', paddingTop: '100px' }}>
           <div style={{ color: 'var(--terminal-accent)', fontSize: '24px', marginBottom: '20px' }}>
             PLAYER MODE
@@ -146,7 +226,7 @@ export const App = () => {
       minHeight: '700px',
       overflow: 'hidden' 
     }}>
-      <Header appMode={appMode} setAppMode={setAppMode} />
+      <Header appMode={appMode} setAppMode={setAppMode} physics={physics} />
       
       <div className="terminal-content" style={{ display: 'flex', height: '640px' }}>
         <LeftPanel
@@ -186,6 +266,7 @@ export const App = () => {
           isMultiple={isMultiple}
           center={center}
           updateTilePropertyEnhanced={updateTilePropertyEnhanced}
+          physics={physics}
         />
       </div>
     </div>

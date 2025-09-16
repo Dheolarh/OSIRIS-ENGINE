@@ -217,6 +217,22 @@ export const AppearanceSection: React.FC<AppearanceSectionProps> = ({
           style={{ width: '100%', fontSize: '10px' }}
         />
       </div>
+
+      {/* Triangulate Toggle */}
+      <div style={{ marginBottom: '5px', marginTop: '10px' }}>
+        <label style={{ display: 'flex', alignItems: 'center', color: 'var(--terminal-secondary)', cursor: 'pointer' }}>
+          <input
+            type="checkbox"
+            checked={firstTile.appearance.triangulate || false}
+            onChange={(e) => updateTilePropertyEnhanced('appearance.triangulate', e.target.checked)}
+            style={{ marginRight: '8px', accentColor: 'var(--terminal-success)' }}
+          />
+          Triangulate
+        </label>
+        <div style={{ fontSize: '8px', color: 'var(--terminal-secondary)', marginTop: '2px' }}>
+          Convert rectangular tile to triangle shape
+        </div>
+      </div>
     </div>
   );
 };

@@ -1,8 +1,11 @@
 import React from 'react';
 import { useTileManager, Tile } from '../../hooks/useTileManager';
+import { UsePhysicsReturn } from '../../physics/hooks/usePhysics';
+import { CollapsibleSection } from '../ui/CollapsibleSection';
 import { TransformSection } from './TransformSection';
 import { AppearanceSection } from './AppearanceSection';
 import { MeshInfoSection } from './MeshInfoSection';
+import { PhysicsPropertiesPanel } from '../physics/PhysicsPropertiesPanel';
 
 interface RightPanelProps {
   tileManager: ReturnType<typeof useTileManager>;
@@ -11,6 +14,7 @@ interface RightPanelProps {
   isMultiple: boolean;
   center: { x: number; y: number };
   updateTilePropertyEnhanced: (path: string, value: any) => void;
+  physics: UsePhysicsReturn;
 }
 
 export const RightPanel: React.FC<RightPanelProps> = ({
@@ -19,7 +23,8 @@ export const RightPanel: React.FC<RightPanelProps> = ({
   firstTile,
   isMultiple,
   center,
-  updateTilePropertyEnhanced
+  updateTilePropertyEnhanced,
+  physics
 }) => {
   return (
     <div 
@@ -65,21 +70,35 @@ export const RightPanel: React.FC<RightPanelProps> = ({
             tileManager={tileManager}
           />
 
-          {/* Transform Section */}
-          <TransformSection
-            firstTile={firstTile}
-            isMultiple={isMultiple}
-            center={center}
-            updateTilePropertyEnhanced={updateTilePropertyEnhanced}
-          />
+          {/* Tile Properties Section - Collapsible */}
+          <CollapsibleSection title="TILE PROPERTIES" defaultExpanded={true}>
+            <TransformSection
+              firstTile={firstTile}
+              isMultiple={isMultiple}
+              center={center}
+              updateTilePropertyEnhanced={updateTilePropertyEnhanced}
+            />
 
-          {/* Appearance Section */}
-          <AppearanceSection
-            firstTile={firstTile}
-            isMultiple={isMultiple}
-            tileManager={tileManager}
-            updateTilePropertyEnhanced={updateTilePropertyEnhanced}
-          />
+            <AppearanceSection
+              firstTile={firstTile}
+              isMultiple={isMultiple}
+              tileManager={tileManager}
+              updateTilePropertyEnhanced={updateTilePropertyEnhanced}
+            />
+          </CollapsibleSection>
+
+          {/* Physics Components Section - Collapsible */}
+          <CollapsibleSection 
+            title="PHYSICS COMPONENTS" 
+            defaultExpanded={false}
+            accentColor="var(--terminal-success)"
+          >
+            <PhysicsPropertiesPanel 
+              tileId={firstTile?.id}
+              physics={physics}
+              tileManager={tileManager}
+            />
+          </CollapsibleSection>
         </div>
       ) : (
         <div style={{ 
